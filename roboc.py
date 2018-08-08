@@ -10,10 +10,6 @@
 import sys
 import re
 import os
-<<<<<<< HEAD
-import tkinter as tk
-=======
->>>>>>> 577296e... Ajout d'un affichage graphique des règles du jeu avec Tkinter (sans mise en forme du texte)
 
 from mouvement import Mouvement
 from labyrinthe import Labyrinthe
