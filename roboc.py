@@ -10,12 +10,49 @@
 import sys
 import re
 import os
+import tkinter as tk
 
 from mouvement import Mouvement
 from labyrinthe import Labyrinthe
 from actions import deplacer
 from actions import question_fermee
 from actions import sortir
+
+#########################################################################################
+##    CLASSE
+#########################################################################################
+
+class Question_ON(tk.Frame):
+    """Classe héritée de Frame qui permet d'afficher une question fermée.
+    Elle contient un booleen qui vaut True si la réponse est OUI et False si la réponse est NON.
+    Par défaut la réponse vaut True."""
+
+    def __init__(self, ma_question, master=None): 
+        """La Question_ON contient les attributs suivants :
+            question   -- le widget label du str (la question)
+            bouton_oui -- le widget button du bouton OUI
+            bouton-non -- le widget button du bouton NON
+            reponse    -- booleen qui vaut True par défaut
+        """
+        super().__init__(master)
+        self.pack()
+        # ma question
+        self.question = tk.Label(self, text=ma_question, bg="ivory")
+        self.question.pack(side=tk.TOP, padx=5, pady=5)
+        # les boutons réponses
+        self.bouton_oui = tk.Button(self, text="OUI", command = self.quit)
+        self.bouton_oui.pack(side=tk.LEFT, padx=5, pady=5)
+        self.bouton_non = tk.Button(self, text="NON", fg="red", command=self.cliquer)
+        self.bouton_non.pack(side=tk.RIGHT, padx=5, pady=5)
+        # la réponse enregistrée
+        self.reponse = True
+
+    def cliquer(self):
+        """Fonction activée quand le joueur clique sur NON. La réponse devient False et on
+        ferme la fenêtre"""
+        self.reponse = False
+        self.quit()
+
 
 #########################################################################################
 ##    TELECHARGEMENT DES CARTES
@@ -46,10 +83,15 @@ continuer_jouer = bool() # bool -- vaut True tant que le joueur souhaite jouer
 partie = bool() # bool -- vaut True tant que le robot n'est pas sorti du labyrinthe
 
 
-##### DEBUT DU JEU
-print(" ")
-print("Souhaites-tu jouer au jeu du labyrinthe ? ")
-continuer_jouer = question_fermee()
+##### DEBUT DU JEU - AFFICHAGE
+
+question_0 = "  \n Souhaites-tu jouer au jeu du labyrinthe ? \n  "
+introduction = Question_ON(question_0)
+introduction.mainloop()
+introduction.destroy() #on ferme la fenetre
+
+
+continuer_jouer = introduction.reponse
 
 if not continuer_jouer: # si le joueur ne souhgaite pas jouer on quitte immédiatement la partie
     sys.exit("Très bien, au revoir et à bientôt !")

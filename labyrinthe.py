@@ -25,7 +25,7 @@ class Labyrinthe:
         robot -- coordonnées du robot sous la forme d'une liste de deux int
         sortie -- coordonnées de la sortie sous la forme d'une liste de deux int
 
-    La carte est un dictionnaire labyrinthe à partir d'un str.
+    La carte est un dictionnaire labyrinthe créé à partir d'un str.
     La clé du dictionnaire est une liste composé de 2 int qui désigne les coordonnées
     La valeur associée à une clé est un str qui peut être :
     " " -- vide
