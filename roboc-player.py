@@ -1,6 +1,6 @@
 #########################################################################################
-##                                      Chapitre 3                                     ##
-##                                   LE JEU EN RESEAU                                  ##
+##                                 JEU DU LABYRINTHE                                   ##
+##                                    PLAYER CODE                                      ##
 #########################################################################################
 
 #########################################################################################
@@ -79,17 +79,22 @@ while msg_a_envoyer != b"q":
         print("Entrer un déplacement pour votre robot X ou q pour quitter : ")
         mvt_str = input(">") # On reçoit le déplacement sous forme de str
         print(" ")
-                
-        if re.search(expression, mvt_str) is None: # On vérifie avec l'expression régulière que l'instruction est au bon format
+        
+        if re.search(r"q", mvt_str) is not None: # Si le joueur rentre "q", on quitte le jeu
+            msg_a_envoyer = b"q"
+            instruction_ok = False
+            
+        elif re.search(expression, mvt_str) is None: # On vérifie avec l'expression régulière que l'instruction est au bon format
             print("L'expression n'est pas valide.")
             print("Le premier caractère doit être un point cardinal n, s, e ou o. ")
             print("le deuxième caractère doit être un entier entre 1 et 9.")
 
         else:
+            # on encode l'instruction
+            msg_a_envoyer = mvt_str.encode()
             instruction_ok = False
 
-    # on envoit l'instruction
-    msg_a_envoyer = mvt_str.encode()
+    # On envoie le message correspondant au serveur
     connexion_avec_serveur.send(msg_a_envoyer) 
 
     # On reçoit la nouvelle carte du labyrinthe

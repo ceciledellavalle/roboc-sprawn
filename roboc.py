@@ -21,10 +21,6 @@ from actions import deplacer
 from actions import question_fermee
 from actions import sortir
 
-#########################################################################################
-##    CLASSE
-#########################################################################################
-
 
 
 #########################################################################################
@@ -54,6 +50,8 @@ for i, elt in enumerate(liste_labyrinthe):
 ##### INITIALISATION
 continuer_jouer = bool() # bool -- vaut True tant que le joueur souhaite jouer
 partie = bool() # bool -- vaut True tant que le robot n'est pas sorti du labyrinthe
+continuer_jouer = True # bool() -- Vaut True tant que le Master est connecté
+clients_connectes = [] # list() -- Liste des sockets des clients connectés
 
 ##### GESTION DE LA CONNECTION
 # Contruction du socket
@@ -71,18 +69,11 @@ print("Le serveur écoute à présent sur le port {}".format(port))
 
 
 ##### DEBUT DU JEU 
-continuer_jouer = True # bool() -- Vaut True tant que le Master est connecté
-clients_connectes = [] # list() -- Liste des sockets des clients connectés
-
 while continuer_jouer: # On commence à jouer
 
 ##### NOUVELLE PARTIE
-
     # Le joueur commence une nouvelle partie
     partie = True
-    print(" ")
-    print("~*~ Nouvelle partie ~*~")
-    print(" ")
 
     # Le Master choisit une carte
     choix_labyrinthe = """
@@ -104,8 +95,6 @@ while continuer_jouer: # On commence à jouer
 
 
     while partie:
-
-        # Le joueur entre un déplacment mvt_str
 
         instruction_ok = True # bool() -- Vaut True tant que le serveur ne reçoit pas de déplacement des joueurs
 
@@ -139,35 +128,41 @@ while continuer_jouer: # On commence à jouer
                     # On reçoit l'instruction de déplacement du joueur
                     msg_recu = client.recv(1024)
 
-                    # peut planter si le message contient des caractères spéciaux
-                    msg_recu = msg_recu.decode()
-                    print("Le joueur numéro {0} a choisi de déplacer son robot de {1}".format(index,msg_recu))
-                    mvt_str = str(msg_recu)
+                    # On traite l'information le joueur quitte le jeu
+                    if msg_recu == b"q":
+                        client.close()
+
+                    else :
+                        # peut planter si le message contient des caractères spéciaux
+                        msg_recu = msg_recu.decode()
+                        print("Le joueur numéro {0} a choisi de déplacer son robot de {1}".format(index,msg_recu))
+                        mvt_str = str(msg_recu)
             
-                    # On crée l'objet de la classe Mouvement correspondant au déplacement entré par le joueur
-                    mvt = Mouvement(mvt_str)
+                        # On crée l'objet de la classe Mouvement correspondant au déplacement entré par le joueur
+                        mvt = Mouvement(mvt_str)
 
-                    # Le robot est déplacé
-                    deplacer(mon_labyrinthe, mvt)
+                        # Le robot est déplacé
+                        deplacer(mon_labyrinthe, mvt)
 
-                    # On affiche de nouveau la carte
-                    mon_labyrinthe.afficher_carte()
+                        # On affiche de nouveau la carte
+                        mon_labyrinthe.afficher_carte()
 
-                    # On envoie le labyrinthe au client
-                    msg_a_envoyer = str(mon_labyrinthe).encode()
-                    client.send(msg_a_envoyer) 
-                 
+                        # On teste si le robot est sorti
+                        if sortir(mon_labyrinthe): # si oui, on renvoit un message de victoire et on sort de la partie
+                            print("Le joueur est sorti du labyrinthe")
+                            msg_a_envoyer = " Bravo, le robot {} est sorti du labyrinthe.".format(client)
+                            msg_a_envoyer = msg_a_envoyer.encode()
+                            client.send(msg_a_envoyer)
+                            partie = False
 
+                        else: # Sinon, on envoie le labyrinthe au client
+                            msg_a_envoyer = str(mon_labyrinthe).encode()
+                            client.send(msg_a_envoyer) 
+                
 
-        # Test est-ce que le robot est sorti
-        if sortir(mon_labyrinthe):
-            print("Bravo, tu es sorti du labyrinthe !!")
-            print(" ")
-            partie = False
     
     # Le joueur peut commencer une nouvelle partie
     print("Lancer une nouvelle partie au jeu du labyrinthe ? ")
-    print(" ")
     continuer_jouer = question_fermee()
     
 print("Fermeture de la connexion. ")

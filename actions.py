@@ -85,7 +85,8 @@ def question_fermee():
     """
     instruction_ok = True
     while instruction_ok:
-        continuer = input("OUI / NON : ")
+        print("OUI / NON")
+        continuer = input(">")
         if continuer == "OUI" :
             reponse_bool = True
             instruction_ok = False
