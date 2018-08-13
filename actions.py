@@ -45,9 +45,6 @@ def deplacer(un_labyrinthe, mvt):
         # le robot ne risque donc pas de se volatilier
         if un_labyrinthe.carte[str(n_robot[0]),str(n_robot[1])] == "O":
             mvt.nb_pas = k
-            print("Vous avez déplacé votre robot de {} pas dans la direction {} \
-et puis BOUM, c'est le mur ! ".format(mvt.nb_pas,mvt.direction))
-            print(" ")
             break
 
         # et si on atterri sur la sorite en milieu de parcours, on arrete tout.

@@ -10,9 +10,10 @@
 import sys
 import re
 import os
-import tkinter as tk
-import tkinter.simpledialog as sd
-import tkinter.messagebox as msg
+import random
+
+import socket
+import select
 
 from mouvement import Mouvement
 from labyrinthe import Labyrinthe
@@ -53,144 +54,133 @@ for i, elt in enumerate(liste_labyrinthe):
 ##### INITIALISATION
 continuer_jouer = bool() # bool -- vaut True tant que le joueur souhaite jouer
 partie = bool() # bool -- vaut True tant que le robot n'est pas sorti du labyrinthe
-fenetre = tk.Tk()
+
+##### GESTION DE LA CONNECTION
+# Contruction du socket
+connexion_principale = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Connection du socket
+nom_hote=""
+port = 12800
+connexion_principale.bind((nom_hote, port))
+
+# Faire écouter le socket
+connexion_principale.listen(5)
+print("Le serveur écoute à présent sur le port {}".format(port))
 
 
-##### DEBUT DU JEU - AFFICHAGE
 
-reponse = msg.askyesno(title="Jeu du Layrinthe", message="\nSouhaites-tu jouer au jeu du labyrinthe ?\n  ", icon='question')
-
-continuer_jouer = reponse
-
-if not continuer_jouer: # si le joueur ne souhgaite pas jouer on quitte immédiatement la partie
-    sys.exit("Très bien, au revoir et à bientôt !")
-
-partie_en_cours = msg.askyesno(title="Jeu du Layrinthe", message="  \n As-tu une partie déjà entamée ? \n  ", icon='question')
-
-
-
-
-##### AFFICHAGE DES REGLES
-regles_du_jeu = """ 
-Bienvenu l'ami dans le jeu du labyrinthe !
-Voici quelques règles avant de commencer à jouer. 
-Un labyrinthe est composé des éléments suivants :
-        -- une case vide
-      O -- un mur
-      . -- une porte
-      X -- ton robot
-      U -- la sortie
-Le but du jeu est d'amener le robot sur la sortie. Pour cela tu peux le diriger en lui envoyant
-des instructions sous la forme d'une lettre n, s, e, o pour indiquer la direction :
-      n -- nord
-      s -- sud
-      e -- est
-      o -- ouest
-suivie d'un chiffre entre 1 et 9 pour le nombre de pas que le robot doit faire dans cette direction.
-
-Allez, c'est parti !
-
-"""
-
-champ_label = tk.Label(fenetre, text=regles_du_jeu, bg="ivory").pack(side=tk.TOP, padx=5, pady=5)
-tk.Button(fenetre, text="OK").pack(side=tk.LEFT, padx=5, pady=5)
-
-
+##### DEBUT DU JEU 
+continuer_jouer = True # bool() -- Vaut True tant que le Master est connecté
+clients_connectes = [] # list() -- Liste des sockets des clients connectés
 
 while continuer_jouer: # On commence à jouer
 
-##### OPTION 1 : ENCIENNE PARTIE CHARGEE
-    if partie_en_cours:
-        partie = True
-        path = dir_path + "/cartes/labyrinthe_en_cours.txt"
-        mon_labyrinthe = Labyrinthe()
-        mon_labyrinthe.telecharger(path, "0") 
+##### NOUVELLE PARTIE
 
-##### OPTION 2 : NOUVELLE PARTIE
-    else:
     # Le joueur commence une nouvelle partie
-        partie = True
-        print(" ")
-        print("~*~ Nouvelle partie ~*~")
-        print(" ")
+    partie = True
+    print(" ")
+    print("~*~ Nouvelle partie ~*~")
+    print(" ")
 
-        # Le joueur choisit une carte
-        choix_labyrinthe = """
-        Labyrinthes existants :
-            1 - facile 
-            2 - prison
-            3 - hyperloop
+    # Le Master choisit une carte
+    choix_labyrinthe = """
+    Labyrinthes existants :
+        1 - facile 
+        2 - prison
+        3 - hyperloop
         """
-        print(choix_labyrinthe)
-        instruction_ok = True
-    
-        while instruction_ok:
-            numero_carte = input("Entrez un numéro de labyrinthe : ")
-            print(" ")
-            if numero_carte not in dict_labyrinthe:
-                print("Je n'ai pas ce labyrinthe dans ma bibliothèque.")
-            else:
-                instruction_ok = False
+    print(choix_labyrinthe)
+    print("Entrez un numéro de labyrinthe : ")
+    numero_carte = input(">")
+    print(" ")
 
-        # La carte est chargée dans mon_labyrinthe
-        mon_labyrinthe = Labyrinthe() # initialisation du labyrinthe de la class Labyrinthe
-        mon_labyrinthe = dict_labyrinthe[numero_carte]
-
-    
-
+    # La carte est chargée dans mon_labyrinthe
+    mon_labyrinthe = Labyrinthe() # initialisation du labyrinthe de la class Labyrinthe
+    mon_labyrinthe = dict_labyrinthe[numero_carte]
     # La console affiche la carte
     mon_labyrinthe.afficher_carte()
-
 
 
     while partie:
 
         # Le joueur entre un déplacment mvt_str
-        # On vérifie qu'il a saisit le mouvement au bon format une lettre puis un nombre
-        expression = r"^[nseo]{1}[1-9]{1}$"
-        instruction_ok = True
 
-        while instruction_ok:
-            mvt_str = input("Entrer un déplacement pour votre robot X ou q pour quitter : ")
-            print(" ")
-            
-            if mvt_str == "q" :
-                sys.exit("On se quitte là-dessus alors, à bientôt !")
-                
-            if re.search(expression, mvt_str) is None:
-                print("L'expression n'est pas valide.")
-                print("Le premier caractère doit être un point cardinal n, s, e ou o. ")
-                print("le deuxième caractère doit être un entier entre 1 et 9.")
+        instruction_ok = True # bool() -- Vaut True tant que le serveur ne reçoit pas de déplacement des joueurs
 
+        while instruction_ok :
+
+            # On va vérifier que de nouveaux clients ne demandent pas à se conncerter
+            # Pour cela, on écoute la connection_principale en lecture
+            # On attend au maximum 500ms
+            connexions_demandees, wlist, xlist = select.select([connexion_principale], [], [], 1)
+
+            for connexion in connexions_demandees:
+                # Accepter la connexion client
+                # méthode accept qui bloque le programme tant qu'aucun client n'est connecté
+                # renvoie le socket connecté ET un tuple présentant l'adresse IP et le port de connexion client
+                connexion_avec_client, infos_connexion = connexion.accept()
+                # On ajoute le socket connecté à la liste des clients
+                clients_connectes.append(connexion_avec_client)
+
+            # On attend là encore 500ms max
+            # On enferme l'appel à select.select dans un bloc try
+            # En effet, si la liste des clients connectés est vide, une exception peut être levée
+            clients_a_lire = []
+            try:
+                clients_a_lire, wlist, xlist = select.select(clients_connectes, [], [], 1)
+            except select.error:
+                pass
             else:
-                instruction_ok = False
+            #   On parcourt la liste des clients à lire
+                for index, client in enumerate(clients_a_lire):
 
-                    
-        # On crée l'objet de la classe Mouvement correspondant au déplacement entré par le joueur
-        mvt = Mouvement(mvt_str)
+                    # On reçoit l'instruction de déplacement du joueur
+                    msg_recu = client.recv(1024)
 
-        # Le robot est déplacé
-        deplacer(mon_labyrinthe, mvt)
- 
-        # On enregistre la nouvelle carte
-        mon_labyrinthe.enregistrer(dir_path, "labyrinthe_en_cours")
+                    # peut planter si le message contient des caractères spéciaux
+                    msg_recu = msg_recu.decode()
+                    print("Le joueur numéro {0} a choisi de déplacer son robot de {1}".format(index,msg_recu))
+                    mvt_str = str(msg_recu)
+            
+                    # On crée l'objet de la classe Mouvement correspondant au déplacement entré par le joueur
+                    mvt = Mouvement(mvt_str)
 
-        # On affiche de nouveau la carte
-        mon_labyrinthe.afficher_carte()
+                    # Le robot est déplacé
+                    deplacer(mon_labyrinthe, mvt)
+
+                    # On affiche de nouveau la carte
+                    mon_labyrinthe.afficher_carte()
+
+                    # On envoie le labyrinthe au client
+                    msg_a_envoyer = str(mon_labyrinthe).encode()
+                    client.send(msg_a_envoyer) 
+                 
+
 
         # Test est-ce que le robot est sorti
         if sortir(mon_labyrinthe):
             print("Bravo, tu es sorti du labyrinthe !!")
             print(" ")
             partie = False
-
-
+    
     # Le joueur peut commencer une nouvelle partie
-    print("Souhaites-tu jouer une nouvelle partie au jeu du labyrinthe ? ")
+    print("Lancer une nouvelle partie au jeu du labyrinthe ? ")
     print(" ")
     continuer_jouer = question_fermee()
-    if not continuer_jouer: # si le joueur ne souhgaite pas jouer on quitte immédiatement la partie
-        sys.exit("Très bien, au revoir et à bientôt !")
+    
+print("Fermeture de la connexion. ")
+
+# Fermer les connexions clients
+for client in clients_connectes:
+     client.close()
+
+# Fermer la connexion principales
+connexion_principale.close()
+
+
+
 
 
 
